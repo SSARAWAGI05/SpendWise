@@ -73,7 +73,198 @@ const Dashboard: React.FC = () => {
   const [userBalance, setUserBalance] = useState<number>(0);
   const [totalUserExpenses, setTotalUserExpenses] = useState<number>(0);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+  // Add these with your existing useState declarations
+  const [personalExpenseInput, setPersonalExpenseInput] = useState("");
+  const [budgets, setBudgets] = useState<any[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<any[]>([]);
+  const [personalExpenses, setPersonalExpenses] = useState<any[]>([]);
+  const [budgetSpending, setBudgetSpending] = useState<any>({});
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [newBudgetCategory, setNewBudgetCategory] = useState("Food & Dining");
+  const [newBudgetAmount, setNewBudgetAmount] = useState("");
+  const [newBudgetPeriod, setNewBudgetPeriod] = useState("weekly");
+
+  const [newGoalTitle, setNewGoalTitle] = useState("");
+  const [newGoalTargetAmount, setNewGoalTargetAmount] = useState("");
+  const [newGoalTargetDate, setNewGoalTargetDate] = useState("");
   
+  // Fetch user's budgets
+  const fetchUserBudgets = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: budgets, error } = await supabase
+      .from("user_budgets")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("period", "weekly");
+
+    if (!error && budgets) {
+      setBudgets(budgets);
+    }
+  };
+
+  // Fetch user's savings goals
+  const fetchSavingsGoals = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: goals, error } = await supabase
+      .from("savings_goals")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (!error && goals) {
+      setSavingsGoals(goals);
+    }
+  };
+
+  // Calculate budget spending for current week
+  const calculateBudgetSpending = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Get start of current week
+    const now = new Date();
+    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+    
+    const { data: expenses, error } = await supabase
+      .from("personal_transactions")
+      .select("label, amount")
+      .eq("user_id", user.id)
+      .gte("created_at", startOfWeek.toISOString());
+
+    if (!error && expenses) {
+      const spending = expenses.reduce((acc: any, expense: any) => {
+        const category = expense.label || 'Miscellaneous';
+        acc[category] = (acc[category] || 0) + parseFloat(expense.amount);
+        return acc;
+      }, {});
+      setBudgetSpending(spending);
+    }
+  };
+
+  // Handle adding personal expense
+  const handleAddPersonalExpense = async () => {
+    if (!personalExpenseInput.trim()) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Simple parsing - you can make this more sophisticated
+    const amount = personalExpenseInput.match(/\d+/)?.[0];
+    if (!amount) {
+      alert("Please include an amount in your expense");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("personal_transactions")
+      .insert([{
+        user_id: user.id,
+        amount: parseFloat(amount),
+        note: personalExpenseInput,
+        label: 'Miscellaneous' // You can add logic to detect category
+      }]);
+
+    if (error) {
+      alert("Error adding expense: " + error.message);
+    } else {
+      setPersonalExpenseInput("");
+      calculateBudgetSpending(); // Refresh budget data
+      alert("Expense added successfully!");
+    }
+  };
+
+  // Handle UPI payment
+  const handleUPIPayment = () => {
+    // This would integrate with UPI APIs
+    alert("UPI payment feature - would integrate with payment gateway");
+  };
+
+  // Add this useEffect with your existing ones
+  useEffect(() => {
+    fetchUserBudgets();
+    fetchSavingsGoals();
+    calculateBudgetSpending();
+  }, []);
+
+  // Handle creating budget
+  const handleCreateBudget = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newBudgetAmount.trim()) {
+      alert("Please enter a budget amount");
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("user_budgets")
+      .insert([{
+        user_id: user.id,
+        category: newBudgetCategory,
+        period: newBudgetPeriod,
+        amount: parseFloat(newBudgetAmount),
+        start_date: new Date().toISOString().split('T')[0]
+      }]);
+
+    if (error) {
+      alert("Error creating budget: " + error.message);
+    } else {
+      setNewBudgetCategory("Food & Dining");
+      setNewBudgetAmount("");
+      setNewBudgetPeriod("weekly");
+      setShowBudgetModal(false);
+      fetchUserBudgets(); // Refresh budgets
+      alert("Budget created successfully!");
+    }
+  };
+
+  // Handle creating savings goal
+  const handleCreateGoal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newGoalTitle.trim() || !newGoalTargetAmount.trim()) {
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const goalData: any = {
+      user_id: user.id,
+      title: newGoalTitle.trim(),
+      target_amount: parseFloat(newGoalTargetAmount),
+      current_amount: 0
+    };
+
+    if (newGoalTargetDate) {
+      goalData.target_date = newGoalTargetDate;
+    }
+
+    const { error } = await supabase
+      .from("savings_goals")
+      .insert([goalData]);
+
+    if (error) {
+      alert("Error creating goal: " + error.message);
+    } else {
+      setNewGoalTitle("");
+      setNewGoalTargetAmount("");
+      setNewGoalTargetDate("");
+      setShowGoalModal(false);
+      fetchSavingsGoals(); // Refresh goals
+      alert("Savings goal created successfully!");
+    }
+  };
+
+
   const handleDeleteGroup = async (groupId: string) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this group?");
     if (!confirmDelete) return;
@@ -863,40 +1054,57 @@ const Dashboard: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-[#1B263B] border border-[#2D3A4D] rounded-2xl overflow-hidden"
+          className="bg-[#1B263B] border border-[#2D3A4D] rounded-xl sm:rounded-2xl overflow-hidden"
         >
           {/* Tab Navigation */}
-          <div className="flex border-b border-[#2D3A4D]">
+          <div className="flex border-b border-[#2D3A4D] overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setSelectedTab("groups")}
-              className={`flex-1 px-6 py-4 text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 min-w-0 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                 selectedTab === "groups"
                   ? "text-[#00B4D8] bg-[#00B4D8]/5 border-b-2 border-[#00B4D8]"
                   : "text-[#778DA9] hover:text-[#E0E1DD] hover:bg-[#2D3A4D]/30"
               }`}
             >
-              <div className="flex items-center gap-2 justify-center">
-                <Users className="w-4 h-4" />
-                Groups
+              <div className="flex items-center gap-1.5 sm:gap-2 justify-center">
+                <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="truncate">Groups</span>
               </div>
             </button>
+            
             <button
               onClick={() => setSelectedTab("expenses")}
-              className={`flex-1 px-6 py-4 text-sm font-medium transition-all duration-200 ${
+              className={`flex-1 min-w-0 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                 selectedTab === "expenses"
                   ? "text-[#00B4D8] bg-[#00B4D8]/5 border-b-2 border-[#00B4D8]"
                   : "text-[#778DA9] hover:text-[#E0E1DD] hover:bg-[#2D3A4D]/30"
               }`}
             >
-              <div className="flex items-center gap-2 justify-center">
-                <CreditCard className="w-4 h-4" />
-                Recent Expenses
+              <div className="flex items-center gap-1.5 sm:gap-2 justify-center">
+                <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="hidden sm:inline">Recent Expenses</span>
+                <span className="sm:hidden truncate">Expenses</span>
+              </div>
+            </button>
+            
+            <button
+              onClick={() => setSelectedTab("personal")}
+              className={`flex-1 min-w-0 px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                selectedTab === "personal"
+                  ? "text-[#00B4D8] bg-[#00B4D8]/5 border-b-2 border-[#00B4D8]"
+                  : "text-[#778DA9] hover:text-[#E0E1DD] hover:bg-[#2D3A4D]/30"
+              }`}
+            >
+              <div className="flex items-center gap-1.5 sm:gap-2 justify-center">
+                <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                <span className="hidden sm:inline">Personal Expenses</span>
+                <span className="sm:hidden truncate">Personal</span>
               </div>
             </button>
           </div>
 
           {/* Tab Content */}
-          <div className="p-6">
+          <div className="p-3 sm:p-4 md:p-6">
             <AnimatePresence mode="wait">
               {selectedTab === "groups" && (
                 <motion.div
@@ -909,25 +1117,25 @@ const Dashboard: React.FC = () => {
                   {loading ? (
                     <div className="flex items-center justify-center py-12">
                       <div className="w-8 h-8 border-2 border-[#2D3A4D] border-t-[#00B4D8] rounded-full animate-spin"></div>
-                      <p className="text-[#778DA9] ml-3">Loading groups...</p>
+                      <p className="text-[#778DA9] ml-3 text-sm sm:text-base">Loading groups...</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:gap-6">
                       {/* New Group Card */}
                       <motion.div
                         onClick={() => setShowNewGroupModal(true)}
-                        className="bg-[#0D1B2A] border-2 border-dashed border-[#2D3A4D] rounded-2xl p-6 hover:border-[#00B4D8]/50 hover:bg-[#00B4D8]/5 transition-all duration-300 cursor-pointer group"
+                        className="bg-[#0D1B2A] border-2 border-dashed border-[#2D3A4D] rounded-xl sm:rounded-2xl p-4 sm:p-6 hover:border-[#00B4D8]/50 hover:bg-[#00B4D8]/5 transition-all duration-300 cursor-pointer group"
                         whileHover={{ scale: 1.02, y: -2 }}
                         whileTap={{ scale: 0.98 }}
                       >
                         <div className="text-center">
-                          <div className="w-12 h-12 bg-[#2D3A4D] group-hover:bg-gradient-to-br group-hover:from-[#00B4D8] group-hover:to-[#48CAE4] rounded-xl flex items-center justify-center mx-auto mb-4 transition-all duration-300">
-                            <Plus className="w-6 h-6 text-[#778DA9] group-hover:text-white transition-colors duration-300" />
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#2D3A4D] group-hover:bg-gradient-to-br group-hover:from-[#00B4D8] group-hover:to-[#48CAE4] rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4 transition-all duration-300">
+                            <Plus className="w-5 h-5 sm:w-6 sm:h-6 text-[#778DA9] group-hover:text-white transition-colors duration-300" />
                           </div>
-                          <h3 className="text-lg font-semibold text-[#E0E1DD] mb-2 group-hover:text-[#00B4D8] transition-colors">
+                          <h3 className="text-base sm:text-lg font-semibold text-[#E0E1DD] mb-1 sm:mb-2 group-hover:text-[#00B4D8] transition-colors">
                             New Group
                           </h3>
-                          <p className="text-[#778DA9] text-sm">Create a new expense group</p>
+                          <p className="text-[#778DA9] text-xs sm:text-sm">Create a new expense group</p>
                         </div>
                       </motion.div>
 
@@ -938,62 +1146,63 @@ const Dashboard: React.FC = () => {
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.1 + index * 0.05 }}
-                          className="bg-[#0D1B2A] border border-[#2D3A4D] rounded-2xl p-6 hover:shadow-lg hover:shadow-[#00B4D8]/10 hover:border-[#00B4D8]/30 transition-all duration-300 cursor-pointer group"
+                          className="bg-[#0D1B2A] border border-[#2D3A4D] rounded-xl sm:rounded-2xl p-4 sm:p-6 hover:shadow-lg hover:shadow-[#00B4D8]/10 hover:border-[#00B4D8]/30 transition-all duration-300 cursor-pointer group"
                           whileHover={{ scale: 1.02, y: -2 }}
                         >
-                          <div className="flex items-start justify-between mb-4">
-                            <div className={`w-12 h-12 bg-gradient-to-br ${group.color} rounded-xl flex items-center justify-center shadow-lg`}>
-                              <Users className="w-6 h-6 text-white" />
+                          <div className="flex items-start justify-between mb-3 sm:mb-4">
+                            <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br ${group.color} rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg`}>
+                              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                             </div>
                             {group.unreadMessages > 0 && (
-                              <div className="bg-[#00B4D8] text-white text-xs font-bold px-2 py-1 rounded-full">
-                                {group.unreadMessages}
+                              <div className="bg-[#00B4D8] text-white text-xs font-bold px-2 py-1 rounded-full min-w-[20px] text-center">
+                                {group.unreadMessages > 99 ? '99+' : group.unreadMessages}
                               </div>
                             )}
                           </div>
 
-                          <h3 className="text-lg font-semibold text-[#E0E1DD] mb-2 group-hover:text-[#00B4D8] transition-colors">
+                          <h3 className="text-base sm:text-lg font-semibold text-[#E0E1DD] mb-1 sm:mb-2 group-hover:text-[#00B4D8] transition-colors line-clamp-1">
                             {group.name}
                           </h3>
-                          <p className="text-[#778DA9] text-sm mb-4">
+                          <p className="text-[#778DA9] text-xs sm:text-sm mb-3 sm:mb-4">
                             {group.members} members
                           </p>
 
-                          <div className="space-y-2 mb-4">
-                            <div className="flex justify-between text-sm">
+                          <div className="space-y-2 mb-3 sm:mb-4">
+                            <div className="flex justify-between text-xs sm:text-sm">
                               <span className="text-[#778DA9]">Total expenses:</span>
                               <span className="text-[#E0E1DD] font-semibold">
-                                ₹{group.totalExpenses.toFixed(2)}
+                                ₹{group.totalExpenses.toFixed(0)}
                               </span>
                             </div>
-                            <div className="flex justify-between text-sm">
+                            <div className="flex justify-between text-xs sm:text-sm">
                               <span className="text-[#778DA9]">Your share:</span>
                               <span className="text-[#E0E1DD] font-semibold">
-                                ₹{group.yourShare.toFixed(2)}
+                                ₹{group.yourShare.toFixed(0)}
                               </span>
                             </div>
                           </div>
 
-                          <div className="flex gap-3">
+                          <div className="flex gap-2 sm:gap-3">
                             {/* Open Chat Button */}
                             <button
                               onClick={() => navigate(`/group/${group.id}/chat`)}
-                              className="flex-1 py-4 glass-light hover:bg-gradient-to-r hover:from-indigo-500/20 hover:to-purple-500/20 
-                                        border border-white/20 hover:border-indigo-500/40 rounded-3xl text-gray-300 
-                                        hover:text-white font-semibold transition-smooth flex items-center justify-center gap-3"
+                              className="flex-1 py-2.5 sm:py-4 glass-light hover:bg-gradient-to-r hover:from-indigo-500/20 hover:to-purple-500/20 
+                                        border border-white/20 hover:border-indigo-500/40 rounded-2xl sm:rounded-3xl text-gray-300 
+                                        hover:text-white font-medium sm:font-semibold transition-smooth flex items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm"
                             >
-                              <MessageCircle className="w-5 h-5" />
-                              Open Chat
+                              <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                              <span className="hidden xs:inline">Open Chat</span>
+                              <span className="xs:hidden">Chat</span>
                             </button>
 
                             {/* Delete Button */}
                             <button
                               onClick={() => handleDeleteGroup(group.id)}
-                              className="p-4 glass-light border border-red-500/30 text-red-400 
-                                        hover:bg-red-500/10 hover:text-red-300 rounded-3xl transition-smooth"
+                              className="p-2.5 sm:p-4 glass-light border border-red-500/30 text-red-400 
+                                        hover:bg-red-500/10 hover:text-red-300 rounded-2xl sm:rounded-3xl transition-smooth"
                               title="Delete Group"
                             >
-                              <X className="w-5 h-5" />
+                              <X className="w-4 h-4 sm:w-5 sm:h-5" />
                             </button>
                           </div>
                         </motion.div>
@@ -1011,28 +1220,28 @@ const Dashboard: React.FC = () => {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold text-[#E0E1DD]">Recent Expenses</h2>
-                    <div className="flex items-center gap-3">
-                      <button className="flex items-center gap-2 text-[#778DA9] hover:text-[#E0E1DD] transition-colors px-3 py-2 rounded-xl hover:bg-[#2D3A4D]/30">
-                        <Filter className="w-4 h-4" />
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
+                    <h2 className="text-lg sm:text-xl font-semibold text-[#E0E1DD]">Recent Expenses</h2>
+                    <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-1">
+                      <button className="flex items-center gap-1.5 sm:gap-2 text-[#778DA9] hover:text-[#E0E1DD] transition-colors px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl hover:bg-[#2D3A4D]/30 text-xs sm:text-sm whitespace-nowrap">
+                        <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         Filter
                       </button>
-                      <button className="flex items-center gap-2 text-[#778DA9] hover:text-[#E0E1DD] transition-colors px-3 py-2 rounded-xl hover:bg-[#2D3A4D]/30">
-                        <Calendar className="w-4 h-4" />
+                      <button className="flex items-center gap-1.5 sm:gap-2 text-[#778DA9] hover:text-[#E0E1DD] transition-colors px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl hover:bg-[#2D3A4D]/30 text-xs sm:text-sm whitespace-nowrap">
+                        <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         This Month
                       </button>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {recentExpenses.length === 0 ? (
-                      <div className="text-center py-12">
-                        <div className="w-12 h-12 bg-[#2D3A4D] rounded-xl flex items-center justify-center mx-auto mb-4">
-                          <CreditCard className="w-6 h-6 text-[#778DA9]" />
+                      <div className="text-center py-8 sm:py-12">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#2D3A4D] rounded-lg sm:rounded-xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                          <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-[#778DA9]" />
                         </div>
-                        <p className="text-[#778DA9]">No recent expenses</p>
-                        <p className="text-[#778DA9] text-sm mt-1">Start adding expenses to see them here!</p>
+                        <p className="text-[#778DA9] text-sm sm:text-base">No recent expenses</p>
+                        <p className="text-[#778DA9] text-xs sm:text-sm mt-1">Start adding expenses to see them here!</p>
                       </div>
                     ) : (
                       recentExpenses.map((expense, index) => (
@@ -1041,55 +1250,235 @@ const Dashboard: React.FC = () => {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          className="flex items-center justify-between p-4 bg-[#0D1B2A] border border-[#2D3A4D] rounded-xl hover:bg-[#1B263B]/50 hover:border-[#00B4D8]/30 transition-all duration-300 group"
+                          className="flex items-center justify-between p-3 sm:p-4 bg-[#0D1B2A] border border-[#2D3A4D] rounded-lg sm:rounded-xl hover:bg-[#1B263B]/50 hover:border-[#00B4D8]/30 transition-all duration-300 group"
                         >
-                          <div className="flex items-center gap-4">
-                            <div className="relative">
+                          <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                            <div className="relative flex-shrink-0">
                               {expense.avatar ? (
                                 <img
                                   src={expense.avatar}
                                   alt="Avatar"
-                                  className="w-12 h-12 rounded-xl object-cover"
+                                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl object-cover"
                                 />
                               ) : (
-                                <div className={`w-12 h-12 ${expense.type === 'payment' ? 'bg-gradient-to-br from-[#52B788] to-[#52B788]/80' : 'bg-gradient-to-br from-[#00B4D8] to-[#48CAE4]'} rounded-xl flex items-center justify-center`}>
+                                <div className={`w-10 h-10 sm:w-12 sm:h-12 ${expense.type === 'payment' ? 'bg-gradient-to-br from-[#52B788] to-[#52B788]/80' : 'bg-gradient-to-br from-[#00B4D8] to-[#48CAE4]'} rounded-lg sm:rounded-xl flex items-center justify-center`}>
                                   {expense.type === 'payment' ? (
-                                    <ArrowUpRight className="w-5 h-5 text-white" />
+                                    <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                   ) : (
-                                    <CreditCard className="w-5 h-5 text-white" />
+                                    <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                                   )}
                                 </div>
                               )}
-                              <div className={`absolute -bottom-1 -right-1 w-5 h-5 ${expense.type === 'payment' ? 'bg-[#52B788]' : 'bg-[#E63946]'} rounded-full border-2 border-[#0D1B2A] flex items-center justify-center`}>
+                              <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 sm:w-5 sm:h-5 ${expense.type === 'payment' ? 'bg-[#52B788]' : 'bg-[#E63946]'} rounded-full border-2 border-[#0D1B2A] flex items-center justify-center`}>
                                 {expense.type === 'payment' ? (
-                                  <ArrowUpRight className="w-3 h-3 text-white" />
+                                  <ArrowUpRight className="w-2 h-2 sm:w-3 sm:h-3 text-white" />
                                 ) : (
-                                  <ArrowDownRight className="w-3 h-3 text-white" />
+                                  <ArrowDownRight className="w-2 h-2 sm:w-3 sm:h-3 text-white" />
                                 )}
                               </div>
                             </div>
-                            <div>
-                              <h4 className="text-[#E0E1DD] font-semibold group-hover:text-[#00B4D8] transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-[#E0E1DD] font-medium sm:font-semibold group-hover:text-[#00B4D8] transition-colors text-sm sm:text-base line-clamp-1">
                                 {expense.description}
                               </h4>
-                              <p className="text-[#778DA9] text-sm">
+                              <p className="text-[#778DA9] text-xs sm:text-sm line-clamp-1">
                                 {expense.group} • {new Date(expense.date).toLocaleDateString()}
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                             <div className="text-right">
-                              <span className={`text-lg font-bold ${expense.type === 'payment' ? 'text-[#52B788]' : 'text-[#E0E1DD]'}`}>
-                                {expense.type === 'payment' ? '+' : '-'}₹{expense.amount.toFixed(2)}
+                              <span className={`text-sm sm:text-lg font-bold ${expense.type === 'payment' ? 'text-[#52B788]' : 'text-[#E0E1DD]'}`}>
+                                {expense.type === 'payment' ? '+' : '-'}₹{expense.amount.toFixed(0)}
                               </span>
                             </div>
-                            <button className="p-2 opacity-0 group-hover:opacity-100 hover:bg-[#2D3A4D] rounded-lg transition-all duration-200">
-                              <MoreHorizontal className="w-4 h-4 text-[#778DA9]" />
+                            <button className="p-1.5 sm:p-2 opacity-0 group-hover:opacity-100 hover:bg-[#2D3A4D] rounded-lg transition-all duration-200">
+                              <MoreHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#778DA9]" />
                             </button>
                           </div>
                         </motion.div>
                       ))
                     )}
+                  </div>
+                </motion.div>
+              )}
+
+              {selectedTab === "personal" && (
+                <motion.div
+                  key="personal"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="space-y-4 sm:space-y-6">
+                    {/* Quick Add Expense Chat */}
+                    <div className="bg-[#0D1B2A] border border-[#2D3A4D] rounded-xl sm:rounded-2xl p-4 sm:p-6">
+                      <h3 className="text-base sm:text-lg font-semibold text-[#E0E1DD] mb-3 sm:mb-4 flex items-center gap-2">
+                        <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                        Quick Add Expense
+                      </h3>
+                      <div className="flex flex-col gap-3">
+                        <input
+                          type="text"
+                          placeholder="Type naturally: 'Paid 250 for coffee' or 'Groceries 1200'"
+                          value={personalExpenseInput}
+                          onChange={(e) => setPersonalExpenseInput(e.target.value)}
+                          className="w-full p-3 sm:p-4 bg-[#1B263B] border border-[#2D3A4D] rounded-lg sm:rounded-xl text-[#E0E1DD] placeholder-[#778DA9] focus:outline-none focus:ring-2 focus:ring-[#00B4D8] focus:border-transparent transition-all duration-300 text-sm sm:text-base"
+                          onKeyPress={(e) => e.key === 'Enter' && handleAddPersonalExpense()}
+                        />
+                        <div className="flex flex-col xs:flex-row gap-2 sm:gap-3">
+                          <button 
+                            onClick={handleAddPersonalExpense}
+                            className="flex-1 px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-[#00B4D8] to-[#48CAE4] text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:shadow-[#00B4D8]/25 transition-all flex items-center justify-center gap-2 text-sm sm:text-base font-medium"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add Expense
+                          </button>
+                          <button 
+                            onClick={handleUPIPayment}
+                            className="flex-1 xs:flex-none px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-[#52B788] to-[#40916C] text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:shadow-[#52B788]/25 transition-all flex items-center justify-center gap-2 text-sm sm:text-base font-medium"
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            Pay by UPI
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[#778DA9] text-xs sm:text-sm mt-2">
+                        Examples: "Lunch 450", "Uber 180", "Movie tickets 600"
+                      </p>
+                    </div>
+
+                    {/* Budget Tracking */}
+                    <div className="bg-[#0D1B2A] border border-[#2D3A4D] rounded-xl sm:rounded-2xl p-4 sm:p-6">
+                      <div className="flex flex-col xs:flex-row xs:items-center justify-between mb-4 sm:mb-6 gap-3 xs:gap-0">
+                        <h3 className="text-base sm:text-lg font-semibold text-[#E0E1DD] flex items-center gap-2">
+                          <PieChart className="w-4 h-4 sm:w-5 sm:h-5" />
+                          <span className="hidden sm:inline">Weekly Budget Tracker</span>
+                          <span className="sm:hidden">Budget Tracker</span>
+                        </h3>
+                        <button 
+                          onClick={() => setShowBudgetModal(true)}
+                          className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#1B263B] border border-[#2D3A4D] hover:border-[#00B4D8]/30 rounded-lg sm:rounded-xl text-[#778DA9] hover:text-[#E0E1DD] transition-all text-sm"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Set Budget
+                        </button>
+                      </div>
+
+                      <div className="space-y-3 sm:space-y-4">
+                        {budgets.length === 0 ? (
+                          <div className="text-center py-6 sm:py-8">
+                            <p className="text-[#778DA9] text-sm sm:text-base">No budgets set yet</p>
+                            <button 
+                              onClick={() => setShowBudgetModal(true)}
+                              className="mt-2 px-4 py-2 bg-[#00B4D8] text-white rounded-lg sm:rounded-xl hover:bg-[#00B4D8]/80 transition-all text-sm"
+                            >
+                              Create Your First Budget
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                            {budgets.map((budget) => {
+                              const spent = budgetSpending[budget.category] || 0;
+                              const remaining = budget.amount - spent;
+                              const percentage = Math.min((spent / budget.amount) * 100, 100);
+                              
+                              return (
+                                <div key={budget.id} className="bg-[#1B263B] border border-[#2D3A4D] rounded-lg sm:rounded-xl p-3 sm:p-4">
+                                  <div className="flex items-center justify-between mb-2 sm:mb-3">
+                                    <h4 className="text-[#E0E1DD] font-medium text-sm sm:text-base line-clamp-1">{budget.category}</h4>
+                                    <span className="text-[#778DA9] text-xs sm:text-sm whitespace-nowrap ml-2">₹{spent.toFixed(0)} / ₹{budget.amount}</span>
+                                  </div>
+                                  <div className="w-full bg-[#2D3A4D] rounded-full h-2 mb-2">
+                                    <div 
+                                      className={`h-2 rounded-full ${
+                                        percentage >= 100 ? 'bg-gradient-to-r from-[#E63946] to-[#F77F00]' :
+                                        percentage >= 80 ? 'bg-gradient-to-r from-[#F77F00] to-[#FCBF49]' :
+                                        'bg-gradient-to-r from-[#00B4D8] to-[#48CAE4]'
+                                      }`}
+                                      style={{width: `${Math.min(percentage, 100)}%`}}
+                                    />
+                                  </div>
+                                  <p className={`text-xs sm:text-sm ${
+                                    remaining < 0 ? 'text-[#E63946]' : 'text-[#52B788]'
+                                  }`}>
+                                    {remaining < 0 ? `₹${Math.abs(remaining).toFixed(0)} over budget!` : `₹${remaining.toFixed(0)} remaining`}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Savings Goals */}
+                    <div className="bg-[#0D1B2A] border border-[#2D3A4D] rounded-xl sm:rounded-2xl p-4 sm:p-6">
+                      <div className="flex flex-col xs:flex-row xs:items-center justify-between mb-4 sm:mb-6 gap-3 xs:gap-0">
+                        <h3 className="text-base sm:text-lg font-semibold text-[#E0E1DD] flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+                          Savings Goals
+                        </h3>
+                        <button 
+                          onClick={() => setShowGoalModal(true)}
+                          className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-[#1B263B] border border-[#2D3A4D] hover:border-[#00B4D8]/30 rounded-lg sm:rounded-xl text-[#778DA9] hover:text-[#E0E1DD] transition-all text-sm"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Goal
+                        </button>
+                      </div>
+
+                      <div className="space-y-3 sm:space-y-4">
+                        {savingsGoals.length === 0 ? (
+                          <div className="text-center py-6 sm:py-8">
+                            <p className="text-[#778DA9] text-sm sm:text-base">No savings goals yet</p>
+                            <button 
+                              onClick={() => setShowGoalModal(true)}
+                              className="mt-2 px-4 py-2 bg-[#00B4D8] text-white rounded-lg sm:rounded-xl hover:bg-[#00B4D8]/80 transition-all text-sm"
+                            >
+                              Create Your First Goal
+                            </button>
+                          </div>
+                        ) : (
+                          savingsGoals.map((goal) => {
+                            const percentage = Math.min((goal.current_amount / goal.target_amount) * 100, 100);
+                            const remaining = goal.target_amount - goal.current_amount;
+                            
+                            return (
+                              <div key={goal.id} className="bg-[#1B263B] border border-[#2D3A4D] rounded-lg sm:rounded-xl p-4 sm:p-5 hover:border-[#00B4D8]/30 transition-all">
+                                <div className="flex items-start sm:items-center justify-between mb-3 sm:mb-4 gap-3">
+                                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-[#00B4D8] to-[#48CAE4] rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                                      <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <h4 className="text-[#E0E1DD] font-medium sm:font-semibold text-sm sm:text-base line-clamp-1">{goal.title}</h4>
+                                      <p className="text-[#778DA9] text-xs sm:text-sm">
+                                        Target: {goal.target_date ? new Date(goal.target_date).toLocaleDateString() : 'No date set'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <p className="text-[#E0E1DD] font-medium sm:font-semibold text-sm sm:text-base">₹{goal.current_amount} / ₹{goal.target_amount}</p>
+                                    <p className="text-[#778DA9] text-xs sm:text-sm">{percentage.toFixed(0)}% complete</p>
+                                  </div>
+                                </div>
+                                <div className="w-full bg-[#2D3A4D] rounded-full h-2.5 sm:h-3 mb-2 sm:mb-3">
+                                  <div 
+                                    className="bg-gradient-to-r from-[#00B4D8] to-[#48CAE4] h-2.5 sm:h-3 rounded-full transition-all duration-300" 
+                                    style={{width: `${percentage}%`}}
+                                  />
+                                </div>
+                                <div className="flex justify-between text-xs sm:text-sm">
+                                  <span className="text-[#52B788]">₹{remaining.toFixed(0)} remaining</span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -1364,6 +1753,158 @@ const Dashboard: React.FC = () => {
                     className="flex-1 py-4 bg-gradient-to-r from-[#00B4D8] to-[#48CAE4] text-white rounded-xl hover:shadow-lg hover:shadow-[#00B4D8]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isCreatingGroup ? "Creating..." : "Create Group"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Budget Modal */}
+      <AnimatePresence>
+        {showBudgetModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={() => setShowBudgetModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-[#1B263B] border border-[#2D3A4D] rounded-2xl p-8 w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#00B4D8] to-[#48CAE4] rounded-xl flex items-center justify-center">
+                  <PieChart className="w-5 h-5 text-white" />
+                </div>
+                <h2 className="text-xl font-semibold text-[#E0E1DD]">Set Budget</h2>
+              </div>
+
+              <form className="space-y-5" onSubmit={handleCreateBudget}>
+                <select
+                  value={newBudgetCategory}
+                  onChange={(e) => setNewBudgetCategory(e.target.value)}
+                  className="w-full p-4 bg-[#0D1B2A] border border-[#2D3A4D] rounded-xl text-[#E0E1DD] focus:outline-none focus:ring-2 focus:ring-[#00B4D8] focus:border-transparent"
+                  required
+                >
+                  <option value="Food & Dining">Food & Dining</option>
+                  <option value="Groceries">Groceries</option>
+                  <option value="Transportation">Transportation</option>
+                  <option value="Entertainment">Entertainment</option>
+                  <option value="Shopping">Shopping</option>
+                  <option value="Health">Health</option>
+                  <option value="Education">Education</option>
+                  <option value="Miscellaneous">Miscellaneous</option>
+                </select>
+                
+                <input
+                  type="number"
+                  placeholder="Budget Amount"
+                  value={newBudgetAmount}
+                  onChange={(e) => setNewBudgetAmount(e.target.value)}
+                  className="w-full p-4 bg-[#0D1B2A] border border-[#2D3A4D] rounded-xl text-[#E0E1DD] placeholder-[#778DA9] focus:outline-none focus:ring-2 focus:ring-[#00B4D8] focus:border-transparent"
+                  required
+                />
+
+                <select
+                  value={newBudgetPeriod}
+                  onChange={(e) => setNewBudgetPeriod(e.target.value)}
+                  className="w-full p-4 bg-[#0D1B2A] border border-[#2D3A4D] rounded-xl text-[#E0E1DD] focus:outline-none focus:ring-2 focus:ring-[#00B4D8] focus:border-transparent"
+                >
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowBudgetModal(false)}
+                    className="flex-1 py-4 bg-[#0D1B2A] border border-[#2D3A4D] text-[#778DA9] rounded-xl hover:bg-[#2D3A4D] hover:text-[#E0E1DD] transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-4 bg-gradient-to-r from-[#00B4D8] to-[#48CAE4] text-white rounded-xl hover:shadow-lg hover:shadow-[#00B4D8]/25 transition-all"
+                  >
+                    Create Budget
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Goal Modal */}
+      <AnimatePresence>
+        {showGoalModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={() => setShowGoalModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-[#1B263B] border border-[#2D3A4D] rounded-2xl p-8 w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#52B788] to-[#40916C] rounded-xl flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <h2 className="text-xl font-semibold text-[#E0E1DD]">Add Savings Goal</h2>
+              </div>
+
+              <form className="space-y-5" onSubmit={handleCreateGoal}>
+                <input
+                  type="text"
+                  placeholder="Goal Title"
+                  value={newGoalTitle}
+                  onChange={(e) => setNewGoalTitle(e.target.value)}
+                  className="w-full p-4 bg-[#0D1B2A] border border-[#2D3A4D] rounded-xl text-[#E0E1DD] placeholder-[#778DA9] focus:outline-none focus:ring-2 focus:ring-[#00B4D8] focus:border-transparent"
+                  required
+                />
+                
+                <input
+                  type="number"
+                  placeholder="Target Amount"
+                  value={newGoalTargetAmount}
+                  onChange={(e) => setNewGoalTargetAmount(e.target.value)}
+                  className="w-full p-4 bg-[#0D1B2A] border border-[#2D3A4D] rounded-xl text-[#E0E1DD] placeholder-[#778DA9] focus:outline-none focus:ring-2 focus:ring-[#00B4D8] focus:border-transparent"
+                  required
+                />
+
+                <input
+                  type="date"
+                  placeholder="Target Date (optional)"
+                  value={newGoalTargetDate}
+                  onChange={(e) => setNewGoalTargetDate(e.target.value)}
+                  className="w-full p-4 bg-[#0D1B2A] border border-[#2D3A4D] rounded-xl text-[#E0E1DD] focus:outline-none focus:ring-2 focus:ring-[#00B4D8] focus:border-transparent"
+                />
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowGoalModal(false)}
+                    className="flex-1 py-4 bg-[#0D1B2A] border border-[#2D3A4D] text-[#778DA9] rounded-xl hover:bg-[#2D3A4D] hover:text-[#E0E1DD] transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-4 bg-gradient-to-r from-[#52B788] to-[#40916C] text-white rounded-xl hover:shadow-lg hover:shadow-[#52B788]/25 transition-all"
+                  >
+                    Create Goal
                   </button>
                 </div>
               </form>
