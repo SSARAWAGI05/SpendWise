@@ -84,10 +84,13 @@ const Dashboard: React.FC = () => {
   const [newBudgetCategory, setNewBudgetCategory] = useState("Food & Dining");
   const [newBudgetAmount, setNewBudgetAmount] = useState("");
   const [newBudgetPeriod, setNewBudgetPeriod] = useState("weekly");
+  // Add this with your other useState declarations (around line 50)
+  const [isProcessingExpense, setIsProcessingExpense] = useState(false);
 
   const [newGoalTitle, setNewGoalTitle] = useState("");
   const [newGoalTargetAmount, setNewGoalTargetAmount] = useState("");
   const [newGoalTargetDate, setNewGoalTargetDate] = useState("");
+  
   
   // Fetch user's budgets
   const fetchUserBudgets = async () => {
@@ -147,6 +150,8 @@ const Dashboard: React.FC = () => {
   };
 
   // Handle adding personal expense
+  // Handle adding personal expense - REPLACE the entire existing function
+  // Ensure your handleAddPersonalExpense function looks like this
   const handleAddPersonalExpense = async () => {
     if (!personalExpenseInput.trim()) return;
 
@@ -160,21 +165,33 @@ const Dashboard: React.FC = () => {
       return;
     }
 
-    const { error } = await supabase
-      .from("personal_transactions")
-      .insert([{
-        user_id: user.id,
-        amount: parseFloat(amount),
-        note: personalExpenseInput,
-        label: 'Miscellaneous' // You can add logic to detect category
-      }]);
+    try {
+      setIsProcessingExpense(true); // If you added the loading state
 
-    if (error) {
-      alert("Error adding expense: " + error.message);
-    } else {
-      setPersonalExpenseInput("");
-      calculateBudgetSpending(); // Refresh budget data
-      alert("Expense added successfully!");
+      // Get the label from webhook (this will also handle savings goal updates)
+      const predictedLabel = await getTransactionLabel(personalExpenseInput.trim());
+
+      const { error } = await supabase
+        .from("personal_transactions")
+        .insert([{
+          user_id: user.id,
+          amount: parseFloat(amount),
+          note: personalExpenseInput,
+          label: predictedLabel
+        }]);
+
+      if (error) {
+        alert("Error adding expense: " + error.message);
+      } else {
+        setPersonalExpenseInput("");
+        calculateBudgetSpending(); // Refresh budget data
+        alert("Expense added successfully!");
+      }
+    } catch (error) {
+      console.error('Error processing expense:', error);
+      alert("Error processing expense. Please try again.");
+    } finally {
+      setIsProcessingExpense(false); // If you added the loading state
     }
   };
 
@@ -553,6 +570,96 @@ const Dashboard: React.FC = () => {
 
     fetchUserBalance();
   }, []);
+
+  // Add this function after the existing helper functions (around line 200) this is for personal transaction label
+  // Replace the existing getTransactionLabel function
+  // Replace the existing getTransactionLabel function with this debug version
+  // Replace the existing getTransactionLabel function
+  // Add this function after the existing helper functions (around line 250)
+  const updateSavingsGoal = async (goalName: string, amount: number) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+      // Find matching savings goal by title (case-insensitive)
+      const { data: matchingGoals, error: fetchError } = await supabase
+        .from("savings_goals")
+        .select("id, current_amount, target_amount")
+        .eq("user_id", user.id)
+        .ilike("title", `%${goalName.trim()}%`); // Use ilike for case-insensitive partial matching
+
+      if (fetchError) {
+        console.error("Error fetching savings goals:", fetchError);
+        return;
+      }
+
+      if (matchingGoals && matchingGoals.length > 0) {
+        // Use the first matching goal
+        const goal = matchingGoals[0];
+        const newAmount = Math.min(goal.current_amount + amount, goal.target_amount); // Don't exceed target
+
+        const { error: updateError } = await supabase
+          .from("savings_goals")
+          .update({ current_amount: newAmount })
+          .eq("id", goal.id);
+
+        if (updateError) {
+          console.error("Error updating savings goal:", updateError);
+        } else {
+          console.log(`Updated savings goal "${goalName}" with amount ${amount}`);
+          // Refresh savings goals display
+          fetchSavingsGoals();
+        }
+      } else {
+        console.log(`No matching savings goal found for "${goalName}"`);
+      }
+    } catch (error) {
+      console.error("Error in updateSavingsGoal:", error);
+    }
+  };
+
+  // Replace the existing getTransactionLabel function
+  const getTransactionLabel = async (transactionText: string): Promise<string> => {
+    try {
+      const response = await fetch('https://shubamsarawagi2.app.n8n.cloud/webhook/8ae0fd7a-b5a4-4c1b-a593-1248049cfa29', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transaction_text: transactionText
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Webhook response:', data); // For debugging
+
+      // Check if it's a category response: {"output": "Groceries"}
+      if (data && data.output && typeof data.output === 'string') {
+        return data.output;
+      }
+      
+      // Check if it's a savings goal response: {"Goal": "iPad", "Amount": 1001}
+      if (data && data.Goal && data.Amount && typeof data.Goal === 'string' && typeof data.Amount === 'number') {
+        // Update the matching savings goal
+        await updateSavingsGoal(data.Goal, data.Amount);
+        
+        // Return a default category since this was a savings goal transaction
+        return 'Savings & Investments';
+      }
+
+      console.warn('Unexpected webhook response format:', data);
+      return 'Miscellaneous'; // Fallback
+      
+    } catch (error) {
+      console.error('Error getting transaction label:', error);
+      return 'Miscellaneous'; // Fallback category
+    }
+  };
 
   // Add new email input field
   const addEmailField = () => {
@@ -1328,19 +1435,14 @@ const Dashboard: React.FC = () => {
                           onKeyPress={(e) => e.key === 'Enter' && handleAddPersonalExpense()}
                         />
                         <div className="flex flex-col xs:flex-row gap-2 sm:gap-3">
+                          
                           <button 
                             onClick={handleAddPersonalExpense}
-                            className="flex-1 px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-[#00B4D8] to-[#48CAE4] text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:shadow-[#00B4D8]/25 transition-all flex items-center justify-center gap-2 text-sm sm:text-base font-medium"
+                            disabled={isProcessingExpense}
+                            className="flex-1 px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-[#00B4D8] to-[#48CAE4] text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:shadow-[#00B4D8]/25 transition-all flex items-center justify-center gap-2 text-sm sm:text-base font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Plus className="w-4 h-4" />
-                            Add Expense
-                          </button>
-                          <button 
-                            onClick={handleUPIPayment}
-                            className="flex-1 xs:flex-none px-4 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-[#52B788] to-[#40916C] text-white rounded-lg sm:rounded-xl hover:shadow-lg hover:shadow-[#52B788]/25 transition-all flex items-center justify-center gap-2 text-sm sm:text-base font-medium"
-                          >
-                            <CreditCard className="w-4 h-4" />
-                            Pay by UPI
+                            {isProcessingExpense ? 'Processing...' : 'Add Expense'}
                           </button>
                         </div>
                       </div>
