@@ -1,20 +1,31 @@
-version: "3.9"
+version: '3.8'
 
 services:
-  backend:
-    build: ./python
-    container_name: fastapi-backend
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./python:/app  # optional for hot reload in dev
-    environment:
-      - PYTHONUNBUFFERED=1
-
   frontend:
     build: .
-    container_name: react-frontend
     ports:
       - "3000:80"
     depends_on:
-      - backend
+      - n8n
+    environment:
+      # Use your Mac's LAN IP so phone can reach n8n
+      - VITE_API_BASE_URL=http://localhost:5678
+
+  n8n:
+    image: n8nio/n8n:latest
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - GENERIC_TIMEZONE=Asia/Kolkata
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=yourpassword
+      - N8N_ENCRYPTION_KEY=7Xu04oPH+FtLGSudDDNNhgEDZt0muRn1
+      - N8N_HOST=localhost       # Directly your Mac LAN IP
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_SECURE_COOKIE=false
+    volumes:
+      - ./n8n-local/n8n_data:/home/node/.n8n

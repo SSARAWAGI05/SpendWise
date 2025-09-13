@@ -25,19 +25,76 @@ interface Message {
   amount?: number;
   category?: string;
 }
+const EXPENSE_WEBHOOK_URL = "http://localhost:5678/webhook/c5e46359-f84e-4f92-a9c4-ecc1b89fdba1";
 
-interface FastAPIResponse {
-  output: string;
-  is_expense: boolean;
-  expense_details?: {
-    amount: number;
-    description: string;
-    payer?: string;
-    participants: string[];
-    split_type: 'equal' | 'custom';
-    custom_splits?: { [key: string]: number };
+const callExpenseWebhook = async (prompt: string): Promise<any> => {
+  try {
+    const response = await fetch(EXPENSE_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    if (!response.ok) throw new Error('Webhook request failed');
+    return await response.json();
+  } catch (error) {
+    console.error('Webhook error:', error);
+    return { error: error instanceof Error ? error.message : 'Unknown error occurred' };
+  }
+};
+
+const formatTransaction = (data: any): string => {
+  if (data.error) {
+    return `<b>Error:</b> ${data.error}`;
+  }
+
+  const lenders = data.Lenders || [];
+  const borrowers = data.Borrowers || [];
+  const label = data.label || "N/A";
+
+  let output = "";
+
+  // Format lenders
+  lenders.forEach((lender: any, i: number) => {
+    output += `<b>Lender ${i + 1}:</b><br>`;
+    output += `Name: ${lender.name || 'Unknown'}<br>`;
+    output += `Amount Lent: ${(lender.amountLent || 0).toFixed(2)}<br><br>`;
+  });
+
+  // Format borrowers
+  borrowers.forEach((borrower: any, i: number) => {
+    output += `<b>Borrower ${i + 1}:</b><br>`;
+    output += `Name: ${borrower.name || 'Unknown'}<br>`;
+    output += `Amount Borrowed: ${(borrower.amountBorrowed || 0).toFixed(2)}<br><br>`;
+  });
+
+  output += `<b>Transaction Label:</b> ${label}<br>`;
+  return output.trim();
+};
+
+const extractExpenseDetails = (data: any): any => {
+  const lenders = data.Lenders || [];
+  const borrowers = data.Borrowers || [];
+  const label = data.label;
+
+  const totalAmount = lenders.reduce((sum: number, lender: any) => sum + (lender.amountLent || 0), 0);
+  const payer = lenders[0]?.name || null;
+  const participants = borrowers.map((b: any) => b.name).filter(Boolean);
+
+  const customSplits: { [key: string]: number } = {};
+  borrowers.forEach((b: any) => {
+    if (b.name) customSplits[b.name] = b.amountBorrowed || 0;
+  });
+
+  return {
+    amount: totalAmount,
+    description: `Expense with ${participants.length} participants`,
+    payer,
+    participants,
+    split_type: Object.keys(customSplits).length > 0 ? 'custom' : 'equal',
+    custom_splits: Object.keys(customSplits).length > 0 ? customSplits : null,
+    label
   };
-}
+};
 
 const GroupChat: React.FC = () => {
   const navigate = useNavigate();
@@ -46,7 +103,6 @@ const GroupChat: React.FC = () => {
   const [showActions, setShowActions] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const FASTAPI_URL = "http://127.0.0.1:8000/process";
   const [messages, setMessages] = useState<Message[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showValidationError, setShowValidationError] = useState(false);
@@ -64,9 +120,8 @@ const GroupChat: React.FC = () => {
   const [showSuggestedPayments, setShowSuggestedPayments] = useState(false);
   const [suggestedPayments, setSuggestedPayments] = useState<string>("");
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  const WEBHOOK_URL = "https://shubamsarawagi2.app.n8n.cloud/webhook/4ee80114-3101-4549-a1da-ee157dbce30e"; // Replace with your actual webhook URL
+  const WEBHOOK_URL = "http://localhost:5678/webhook/4ee80114-3101-4549-a1da-ee157dbce30e"; // Replace with your actual webhook URL
   
-
   const processUpiText = async (text: string) => {
     // Simple regex patterns to extract amount and name
     const amountMatch = text.match(/(?:pay|send|give)\s*(?:rs\.?\s*)?(\d+(?:\.\d{2})?)/i);
@@ -353,7 +408,6 @@ const GroupChat: React.FC = () => {
     const transactionId = transactionData?.[0]?.id;
 
     // 2. Optimistically update local chat UI
-    // 2. Optimistically update local chat UI
     const newMessage: Message = {
       id: transactionId || crypto.randomUUID(),
       type: "message",
@@ -364,37 +418,44 @@ const GroupChat: React.FC = () => {
     };
     setMessages((prev) => [...prev, newMessage]);
 
-    // 3. Call FastAPI
-    // 3. Call FastAPI
+    // 3. Process expense extraction directly
     try {
-      const res = await fetch(FASTAPI_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transaction_message: message }),
-      });
-      const apiResponse: FastAPIResponse = await res.json();
+      const prompt = `
+        Extract transaction details from: "${message}"
 
-      // 4. Show FastAPI response in chat as a "bot" message
+        Return ONLY JSON:
+        {
+          "label": "string",
+          "Lenders": [{ "name": "string", "amountLent": number }],
+          "Borrowers": [{ "name": "string", "amountBorrowed": number }]
+        }
+      `;
+      
+      const rawData = await callExpenseWebhook(prompt);
+      const formattedOutput = formatTransaction(rawData);
+
+      // 4. Show processed response in chat as a "bot" message
       const botMessage: Message = {
         id: crypto.randomUUID(),
         type: "bot",
-        content: apiResponse.output,
+        content: formattedOutput,
         sender: "Bot",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botMessage]);
 
       // 5. Handle expense extraction and database insertion
-      // 5. Handle expense extraction and database insertion with validation
-      if (apiResponse.is_expense && apiResponse.expense_details && transactionId) {
+      const isExpense = Boolean(rawData.Lenders || rawData.Borrowers);
+      if (isExpense && !rawData.error && transactionId) {
         // Clear any previous validation errors
         setValidationError(null);
         setShowValidationError(false);
         
-        await handleExpenseExtraction(apiResponse.expense_details, transactionId, userId);
+        const expenseDetails = extractExpenseDetails(rawData);
+        await handleExpenseExtraction(expenseDetails, transactionId, userId);
       }
     } catch (err) {
-      console.error("Error calling FastAPI:", err);
+      console.error("Error processing expense:", err);
     }
 
     setMessage("");

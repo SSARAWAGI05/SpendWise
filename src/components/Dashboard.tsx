@@ -621,7 +621,7 @@ const Dashboard: React.FC = () => {
   // Replace the existing getTransactionLabel function
   const getTransactionLabel = async (transactionText: string): Promise<string> => {
     try {
-      const response = await fetch('https://shubamsarawagi2.app.n8n.cloud/webhook/8ae0fd7a-b5a4-4c1b-a593-1248049cfa29', {
+      const response = await fetch('http://localhost:5678/webhook/8ae0fd7a-b5a4-4c1b-a593-1248049cfa29', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
