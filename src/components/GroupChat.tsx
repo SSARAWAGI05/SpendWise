@@ -14,7 +14,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
-
 interface Message {
   id: string;
   type: 'message' | 'expense' | 'system' | 'bot';
@@ -25,6 +24,11 @@ interface Message {
   amount?: number;
   category?: string;
 }
+
+const generateQRCodeURL = (text: string) => {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(text)}`;
+};
+
 const EXPENSE_WEBHOOK_URL = "http://localhost:5678/webhook/c5e46359-f84e-4f92-a9c4-ecc1b89fdba1";
 
 const callExpenseWebhook = async (prompt: string): Promise<any> => {
@@ -100,7 +104,6 @@ const GroupChat: React.FC = () => {
   const navigate = useNavigate();
   const { groupId } = useParams();
   const [message, setMessage] = useState("");
-  const [showActions, setShowActions] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -836,103 +839,83 @@ const GroupChat: React.FC = () => {
         animate={{ y: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
-        {/* Quick Actions */}
-        <AnimatePresence>
-          {showActions && (
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.9 }}
-              className="flex gap-3 mb-4 overflow-x-auto pb-2"
-            >
-              <motion.button
-                onClick={handleSuggestedPayments}
-                className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-2xl text-white text-sm font-medium whitespace-nowrap shadow-lg shadow-emerald-500/25 border border-white/10"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {loadingSuggestions ? (
-                  <>
-                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                    Getting Suggestions...
-                  </>
-                ) : (
-                  <>
-                    <DollarSign className="w-4 h-4" />
-                    Suggested Payments
-                  </>
-                )}
-              </motion.button>
-
-              <motion.button
-                onClick={() => setShowUpiModal(true)}
-                className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl text-white text-sm font-medium whitespace-nowrap shadow-lg shadow-blue-500/25 border border-white/10"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <DollarSign className="w-4 h-4" />
-                Pay via UPI
-              </motion.button>
-
-              <motion.button
-                className="flex items-center gap-2 px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-2xl text-slate-300 hover:text-white hover:bg-slate-700/50 text-sm font-medium whitespace-nowrap transition-all"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Receipt className="w-4 h-4" />
-                Receipt
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Message Input */}
         <form onSubmit={handleSendMessage} className="flex items-center gap-3">
-          <motion.button
-            type="button"
-            onClick={() => setShowActions(!showActions)}
-            className="p-3 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 hover:border-slate-600/50 rounded-2xl transition-all"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Plus
-              className={`w-5 h-5 text-slate-400 transition-transform ${
-                showActions ? "rotate-45" : ""
-              }`}
-            />
-          </motion.button>
+          {/* Always visible action buttons */}
+          <div className="flex gap-3 mb-4 overflow-x-auto pb-2">
+            <motion.button
+              onClick={handleSuggestedPayments}
+              className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-2xl text-white text-sm font-medium whitespace-nowrap shadow-lg shadow-emerald-500/25 border border-white/10"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              {loadingSuggestions ? (
+                <>
+                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  Getting Suggestions...
+                </>
+              ) : (
+                <>
+                  <DollarSign className="w-4 h-4" />
+                  Suggested Payments
+                </>
+              )}
+            </motion.button>
 
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Type a message..."
-              className="w-full px-4 py-3 bg-slate-800/50 backdrop-blur-md border border-slate-700/50 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent pr-12 transition-all duration-300"
-            />
-            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-              <button
-                type="button"
-                className="p-1.5 hover:bg-slate-700/50 rounded-xl transition-all"
-              >
-                <Smile className="w-4 h-4 text-slate-500" />
-              </button>
-            </div>
+            <motion.button
+              onClick={() => setShowUpiModal(true)}
+              className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl text-white text-sm font-medium whitespace-nowrap shadow-lg shadow-blue-500/25 border border-white/10"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <DollarSign className="w-4 h-4" />
+              Pay via UPI
+            </motion.button>
+
+            <motion.button
+              className="flex items-center gap-2 px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-2xl text-slate-300 hover:text-white hover:bg-slate-700/50 text-sm font-medium whitespace-nowrap transition-all"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <Receipt className="w-4 h-4" />
+              Receipt
+            </motion.button>
           </div>
 
-          <motion.button
-            type="submit"
-            disabled={!message.trim()}
-            className={`p-3 rounded-2xl transition-all border ${
-              message.trim()
-                ? "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:shadow-lg hover:shadow-emerald-500/25 border-white/10"
-                : "bg-slate-800/50 border-slate-700/50"
-            }`}
-            whileHover={message.trim() ? { scale: 1.05 } : {}}
-            whileTap={message.trim() ? { scale: 0.95 } : {}}
-          >
-            <Send className="w-5 h-5 text-white" />
-          </motion.button>
+          {/* Message Input */}
+          <form onSubmit={handleSendMessage} className="flex items-center gap-3">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Type a message..."
+                className="w-full px-4 py-3 bg-slate-800/50 backdrop-blur-md border border-slate-700/50 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent pr-12 transition-all duration-300"
+              />
+              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
+                <button
+                  type="button"
+                  className="p-1.5 hover:bg-slate-700/50 rounded-xl transition-all"
+                >
+                  <Smile className="w-4 h-4 text-slate-500" />
+                </button>
+              </div>
+            </div>
+
+            <motion.button
+              type="submit"
+              disabled={!message.trim()}
+              className={`p-3 rounded-2xl transition-all border ${
+                message.trim()
+                  ? "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:shadow-lg hover:shadow-emerald-500/25 border-white/10"
+                  : "bg-slate-800/50 border-slate-700/50"
+              }`}
+              whileHover={message.trim() ? { scale: 1.05 } : {}}
+              whileTap={message.trim() ? { scale: 0.95 } : {}}
+            >
+              <Send className="w-5 h-5 text-white" />
+            </motion.button>
+          </form>
         </form>
       </motion.div>
 
@@ -1149,9 +1132,43 @@ const GroupChat: React.FC = () => {
                 <h2 className="text-2xl font-bold text-white">UPI Link Generated</h2>
               </div>
               
-              <div className="bg-slate-800/50 rounded-2xl p-4 mb-6 border border-slate-700/50">
-                <p className="text-slate-400 text-sm mb-2">Your UPI payment link:</p>
-                <p className="text-white text-sm break-all font-mono">{upiLink}</p>
+              <div className="bg-slate-800/50 rounded-2xl p-6 mb-6 border border-slate-700/50">
+                <div className="flex flex-col items-center space-y-4">
+                  {/* QR Code */}
+                  <div className="bg-white p-4 rounded-2xl shadow-lg">
+                    <img 
+                      src={generateQRCodeURL(upiLink)}
+                      alt="UPI Payment QR Code"
+                      className="w-48 h-48"
+                      onError={(e) => {
+                        console.error('QR Code failed to load');
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Instructions */}
+                  <div className="text-center">
+                    <p className="text-emerald-400 text-sm font-medium mb-1">
+                      Scan with any UPI app
+                    </p>
+                    <p className="text-slate-500 text-xs">
+                      Or use the link below
+                    </p>
+                  </div>
+                  
+                  {/* Link text - smaller and collapsible */}
+                  <div className="w-full">
+                    <details className="group">
+                      <summary className="text-slate-400 text-sm mb-2 cursor-pointer hover:text-slate-300 transition-colors">
+                        Show UPI link ▼
+                      </summary>
+                      <p className="text-white text-xs break-all font-mono bg-slate-700/50 p-3 rounded-xl mt-2">
+                        {upiLink}
+                      </p>
+                    </details>
+                  </div>
+                </div>
               </div>
               
               <div className="flex gap-3">
