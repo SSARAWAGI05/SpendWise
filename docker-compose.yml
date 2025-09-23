@@ -1,28 +1,26 @@
-version: '3.8'
-
 services:
   frontend:
     build: .
     ports:
-      - "3000:80"
+      - "3000:80" # host:container
     depends_on:
       - n8n
     environment:
-      # Use your Mac's LAN IP so phone can reach n8n
-      - VITE_API_BASE_URL=http://localhost:5678
+      # Use "http://localhost:5679" because n8n is remapped below
+      - VITE_API_BASE_URL=http://localhost:5679
 
   n8n:
     image: n8nio/n8n:latest
     restart: always
     ports:
-      - "5678:5678"
+      - "5679:5678" # map container 5678 to host 5679 (avoid conflicts)
     environment:
       - GENERIC_TIMEZONE=Asia/Kolkata
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
       - N8N_BASIC_AUTH_PASSWORD=yourpassword
       - N8N_ENCRYPTION_KEY=7Xu04oPH+FtLGSudDDNNhgEDZt0muRn1
-      - N8N_HOST=localhost       # Directly your Mac LAN IP
+      - N8N_HOST=0.0.0.0       # bind to all interfaces (not just localhost)
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true

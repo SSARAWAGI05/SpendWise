@@ -376,7 +376,7 @@ const GroupChat: React.FC = () => {
       
     } catch (error) {
       console.error("Error getting payment suggestions:", error);
-      alert("Error getting payment suggestions. Please try again.");
+      alert("No transactions have been made until now!");
     } finally {
       setLoadingSuggestions(false);
     }
@@ -839,83 +839,73 @@ const GroupChat: React.FC = () => {
         animate={{ y: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
-        {/* Message Input */}
+        {/* Always visible action buttons */}
+        <div className="flex gap-3 mb-4 overflow-x-auto pb-2">
+          <motion.button
+            type="button"
+            onClick={handleSuggestedPayments}
+            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-2xl text-white text-sm font-medium whitespace-nowrap shadow-lg shadow-emerald-500/25 border border-white/10"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            {loadingSuggestions ? (
+              <>
+                <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                Getting Suggestions...
+              </>
+            ) : (
+              <>
+                <DollarSign className="w-4 h-4" />
+                Suggested Payments
+              </>
+            )}
+          </motion.button>
+
+          <motion.button
+            type="button"
+            onClick={() => setShowUpiModal(true)}
+            className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl text-white text-sm font-medium whitespace-nowrap shadow-lg shadow-blue-500/25 border border-white/10"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <DollarSign className="w-4 h-4" />
+            Pay via UPI
+          </motion.button>
+        </div>
+
+        {/* Message Input Form */}
         <form onSubmit={handleSendMessage} className="flex items-center gap-3">
-          {/* Always visible action buttons */}
-          <div className="flex gap-3 mb-4 overflow-x-auto pb-2">
-            <motion.button
-              onClick={handleSuggestedPayments}
-              className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-2xl text-white text-sm font-medium whitespace-nowrap shadow-lg shadow-emerald-500/25 border border-white/10"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              {loadingSuggestions ? (
-                <>
-                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                  Getting Suggestions...
-                </>
-              ) : (
-                <>
-                  <DollarSign className="w-4 h-4" />
-                  Suggested Payments
-                </>
-              )}
-            </motion.button>
-
-            <motion.button
-              onClick={() => setShowUpiModal(true)}
-              className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl text-white text-sm font-medium whitespace-nowrap shadow-lg shadow-blue-500/25 border border-white/10"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <DollarSign className="w-4 h-4" />
-              Pay via UPI
-            </motion.button>
-
-            <motion.button
-              className="flex items-center gap-2 px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-2xl text-slate-300 hover:text-white hover:bg-slate-700/50 text-sm font-medium whitespace-nowrap transition-all"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Receipt className="w-4 h-4" />
-              Receipt
-            </motion.button>
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Log transactions, for example: Shubam paid 500 for Kashvi. Refrain from using 'I'."
+              className="w-full px-4 py-3 bg-slate-800/50 backdrop-blur-md border border-slate-700/50 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent pr-12 transition-all duration-300"
+            />
+            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
+              <button
+                type="button"
+                className="p-1.5 hover:bg-slate-700/50 rounded-xl transition-all"
+              >
+                <Smile className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
           </div>
 
-          {/* Message Input */}
-          <form onSubmit={handleSendMessage} className="flex items-center gap-3">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Type a message..."
-                className="w-full px-4 py-3 bg-slate-800/50 backdrop-blur-md border border-slate-700/50 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent pr-12 transition-all duration-300"
-              />
-              <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
-                <button
-                  type="button"
-                  className="p-1.5 hover:bg-slate-700/50 rounded-xl transition-all"
-                >
-                  <Smile className="w-4 h-4 text-slate-500" />
-                </button>
-              </div>
-            </div>
-
-            <motion.button
-              type="submit"
-              disabled={!message.trim()}
-              className={`p-3 rounded-2xl transition-all border ${
-                message.trim()
-                  ? "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:shadow-lg hover:shadow-emerald-500/25 border-white/10"
-                  : "bg-slate-800/50 border-slate-700/50"
-              }`}
-              whileHover={message.trim() ? { scale: 1.05 } : {}}
-              whileTap={message.trim() ? { scale: 0.95 } : {}}
-            >
-              <Send className="w-5 h-5 text-white" />
-            </motion.button>
-          </form>
+          <motion.button
+            type="submit"
+            disabled={!message.trim()}
+            className={`p-3 rounded-2xl transition-all border ${
+              message.trim()
+                ? "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:shadow-lg hover:shadow-emerald-500/25 border-white/10"
+                : "bg-slate-800/50 border-slate-700/50"
+            }`}
+            whileHover={message.trim() ? { scale: 1.05 } : {}}
+            whileTap={message.trim() ? { scale: 0.95 } : {}}
+          >
+            <Send className="w-5 h-5 text-white" />
+          </motion.button>
         </form>
       </motion.div>
 
@@ -1057,15 +1047,20 @@ const GroupChat: React.FC = () => {
                 onSubmit={async (e) => {
                   e.preventDefault();
                   setUpiLoading(true);
-                  await processUpiText(upiText);
-                  setUpiLoading(false);
+                  try {
+                    await processUpiText(upiText);
+                  } catch (error) {
+                    console.error('UPI processing error:', error);
+                  } finally {
+                    setUpiLoading(false);
+                  }
                 }}
                 className="space-y-5"
               >
                 <textarea
                   value={upiText}
                   onChange={(e) => setUpiText(e.target.value)}
-                  placeholder="e.g., I want to pay 500 to Kashvi"
+                  placeholder="e.g., Pay 500 to Kashvi"
                   required
                   rows={3}
                   className="w-full p-4 bg-slate-800/50 border border-slate-700/50 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 resize-none"

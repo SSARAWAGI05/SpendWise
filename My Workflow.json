@@ -1,0 +1,703 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.prompt }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are an assistant that extracts and formats transaction details strictly according to the given rules.\nYou MUST follow these formatting rules without deviation:\nAlways start immediately with \"Lender:\" (no introductory text).\nOnly include the specified lines exactly as shown in the formats.\nNo explanations, no descriptions, no headers like \"Output:\" or \"Result:\".\nNo comments about calculations or assumptions.\nOutput ONLY in the exact format defined below.\nRound all amounts to 2 decimal places.\nFor every transaction, output a single Transaction Label line chosen from this list exactly as written:\nFood & Dining\nGroceries\nRent & Housing\nUtilities\nTransportation\nHealth\nShopping\nEntertainment\nTravel\nEducation\nStationery\nSavings & Investments\nGifts & Donations\nHousehold & Maintenance\nMiscellaneous\n\nTransaction details will be provided in the following schema:\n\n{\n  \"label\": \"string\",\n  \"Lenders\": [\n    { \"name\": \"string\", \"amountLent\": \"number\" }\n  ],\n  \"Borrowers\": [\n    { \"name\": \"string\", \"amountBorrowed\": \"number\" }\n  ]\n}\n\n\nFORMATS\n\nOne Lender, One Borrower:\nLender: [Lenders[0].name]\nAmount Lent: [Lenders[0].amountLent]\n\nBorrower: [Borrowers[0].name]\nAmount Borrowed: [Borrowers[0].amountBorrowed]\n\nTransaction Label: [label]\n\nOne Lender, Multiple Borrowers:\nLender: [Lenders[0].name]\nAmount Lent: [Lenders[0].amountLent]\n\nBorrower 1: [Borrowers[0].name]\nAmount Borrowed 1: [Borrowers[0].amountBorrowed]\n\nBorrower 2: [Borrowers[1].name]\nAmount Borrowed 2: [Borrowers[1].amountBorrowed]\n...\nBorrower n: [Borrowers[n-1].name]\nAmount Borrowed n: [Borrowers[n-1].amountBorrowed]\n\nTransaction Label: [label]\n\nMultiple Lenders, Multiple Borrowers:\nLender 1: [Lenders[0].name]\nAmount Lent 1: [Lenders[0].amountLent]\n\nLender 2: [Lenders[1].name]\nAmount Lent 2: [Lenders[1].amountLent]\n...\nLender m: [Lenders[m-1].name]\nAmount Lent m: [Lenders[m-1].amountLent]\n\nBorrower 1: [Borrowers[0].name]\nAmount Borrowed 1: [Borrowers[0].amountBorrowed]\n\nBorrower 2: [Borrowers[1].name]\nAmount Borrowed 2: [Borrowers[1].amountBorrowed]\n...\nBorrower n: [Borrowers[n-1].name]\nAmount Borrowed n: [Borrowers[n-1].amountBorrowed]\n\nTransaction Label: [label]"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        256,
+        -16
+      ],
+      "id": "1f2fc20f-637a-48e4-8d4d-8c01315c58eb",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        256,
+        208
+      ],
+      "id": "07bef3d4-78e1-4f0a-97bf-617591e1b653",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "j0xkuJmyyEDuP6sV",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"label\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"Food & Dining\",\n        \"Groceries\",\n        \"Rent & Housing\",\n        \"Utilities\",\n        \"Transportation\",\n        \"Health\",\n        \"Shopping\",\n        \"Entertainment\",\n        \"Travel\",\n        \"Education\",\n        \"Stationery\",\n        \"Savings & Investments\",\n        \"Gifts & Donations\",\n        \"Household & Maintenance\",\n        \"Miscellaneous\"\n      ]\n    },\n    \"Lenders\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"name\": { \"type\": \"string\" },\n          \"amountLent\": { \"type\": \"number\" }\n        },\n        \"required\": [\"name\", \"amountLent\"]\n      }\n    },\n    \"Borrowers\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"name\": { \"type\": \"string\" },\n          \"amountBorrowed\": { \"type\": \"number\" }\n        },\n        \"required\": [\"name\", \"amountBorrowed\"]\n      }\n    }\n  },\n  \"required\": [\"label\", \"Lenders\", \"Borrowers\"]\n}\n",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        320,
+        352
+      ],
+      "id": "fea2189b-de96-4a78-aacc-a3f3b751b219",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        320,
+        528
+      ],
+      "id": "840a2f01-9b70-447c-85b8-f54c4555a1a7",
+      "name": "Groq Chat Model1",
+      "credentials": {
+        "groqApi": {
+          "id": "j0xkuJmyyEDuP6sV",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "c5e46359-f84e-4f92-a9c4-ecc1b89fdba1",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        16,
+        -16
+      ],
+      "id": "65e16c4c-ad5a-400f-9a9b-82912c93ff0f",
+      "name": "Webhook",
+      "webhookId": "c5e46359-f84e-4f92-a9c4-ecc1b89fdba1"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        656,
+        -16
+      ],
+      "id": "ad1677de-c01c-476e-9fcd-8384543e5671",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.members_balances }}",
+        "options": {
+          "systemMessage": "You are a payment suggesting assistant.\nYou are given a group with members and their balances.\nPositive balance means they should receive money, negative balance means they owe money.\nYour task is to generate the minimal set of transactions to settle all balances, so that everyone's balance becomes zero.\nOutput format: Write plain text payment suggestions like \"<name1> should pay <name2> ₹<amount>\".\nMinimize the number of transactions, ensure everyone ends up with a balance of 0, use two decimal places, and keep the text human-readable.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        336,
+        800
+      ],
+      "id": "671f0c0c-08cc-46bd-9c3d-c8e76bea483e",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        208,
+        1008
+      ],
+      "id": "461be325-e1eb-4f85-9e6c-a063c4fc2f8a",
+      "name": "Groq Chat Model2",
+      "credentials": {
+        "groqApi": {
+          "id": "j0xkuJmyyEDuP6sV",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "4ee80114-3101-4549-a1da-ee157dbce30e",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -32,
+        784
+      ],
+      "id": "e4b307ee-f3a7-42f5-8c4c-858b40459d57",
+      "name": "Webhook1",
+      "webhookId": "4ee80114-3101-4549-a1da-ee157dbce30e"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        688,
+        800
+      ],
+      "id": "c52db28c-327e-4a05-8ac0-437ed280595e",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "8ae0fd7a-b5a4-4c1b-a593-1248049cfa29",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        352
+      ],
+      "id": "11a2db0e-0e82-473a-b574-8e7145119d13",
+      "name": "Webhook2",
+      "webhookId": "8ae0fd7a-b5a4-4c1b-a593-1248049cfa29"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Webhook2').item.json.body.transaction_text }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a text classification model.\nYour task is to read a short expense description (e.g., \"I paid 100 for Taxi\") and output exactly one label that best represents the category of the expense.\n\nYou must only choose from the following allowed labels:\n\n\"Food & Dining\"\n\n\"Groceries\"\n\n\"Rent & Housing\"\n\n\"Utilities\"\n\n\"Transportation\"\n\n\"Health\"\n\n\"Shopping\"\n\n\"Entertainment\"\n\n\"Travel\"\n\n\"Education\"\n\n\"Stationery\"\n\n\"Savings & Investments\"\n\n\"Gifts & Donations\"\n\n\"Household & Maintenance\"\n\n\"Miscellaneous\"\n\nRules:\n\nRespond with only one label, with no explanation, no extra text, and no formatting other than plain text.\n\nIf the description does not clearly fit into any specific category, choose \"Miscellaneous\".\n\nDo not invent new categories.\n\nDo not repeat the input text."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1808,
+        656
+      ],
+      "id": "19419bc8-c8f9-4898-bf81-d00d3dd25b11",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1808,
+        880
+      ],
+      "id": "55e3ef82-772c-4e06-82a3-0e230383aa4a",
+      "name": "Groq Chat Model3",
+      "credentials": {
+        "groqApi": {
+          "id": "j0xkuJmyyEDuP6sV",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"string\",\n  \"enum\": [\n    \"Food & Dining\",\n    \"Groceries\",\n    \"Rent & Housing\",\n    \"Utilities\",\n    \"Transportation\",\n    \"Health\",\n    \"Shopping\",\n    \"Entertainment\",\n    \"Travel\",\n    \"Education\",\n    \"Stationery\",\n    \"Savings & Investments\",\n    \"Gifts & Donations\",\n    \"Household & Maintenance\",\n    \"Miscellaneous\"\n  ]\n}\n",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1984,
+        864
+      ],
+      "id": "668b820e-e61a-4b76-b80f-1e5e2d4a1895",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"output\": \"{{ $json.output }}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2160,
+        656
+      ],
+      "id": "4966c16e-4ea7-470b-b81b-119590103123",
+      "name": "Respond to Webhook2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        1024
+      ],
+      "id": "1adea1cf-21da-4896-9d89-62ee0c2004e9",
+      "name": "Groq Chat Model4",
+      "credentials": {
+        "groqApi": {
+          "id": "j0xkuJmyyEDuP6sV",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyse the following message and result in true if it is asking to add money to savings\n\nFor example, \"Add 400 in Macbook savings\"\nyour output should be\n{\n\"state\": \"true\"\n}\n\nTHE TEXT ON WHICH YOU HAVE TO ANALYSE:\n {{ $json.body.transaction_text }}",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1088,
+        352
+      ],
+      "id": "d97557c9-14b3-4397-8907-4e3b8c605088",
+      "name": "AI Agent3"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-20b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1088,
+        592
+      ],
+      "id": "a0573011-a5e0-4a4c-8a49-77f75f308d82",
+      "name": "Groq Chat Model5",
+      "credentials": {
+        "groqApi": {
+          "id": "j0xkuJmyyEDuP6sV",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"state\": \"true\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1264,
+        560
+      ],
+      "id": "8773850a-a32f-4b23-8bc8-bfa959e40abc",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        768
+      ],
+      "id": "593dfbb7-56e0-4892-9645-269827ebd6d4",
+      "name": "Groq Chat Model6",
+      "credentials": {
+        "groqApi": {
+          "id": "j0xkuJmyyEDuP6sV",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e15c2845-6200-4de0-a5b4-b5abcaadc4c9",
+              "leftValue": "={{ $json.output.state }}",
+              "rightValue": "=true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1440,
+        352
+      ],
+      "id": "55ba830c-896b-4ed5-baef-09689768a4ac",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Webhook2').item.json.body.transaction_text }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a JSON generator.\nYour task is to read a natural language message that contains:\n\nAn amount of money\n\nAn item, category, or goal it relates to\n\nYou must output only a valid JSON object with:\n\n\"Goal\" → A short, meaningful name for the item or goal\n\n\"Amount\" → The numeric value of the money involved (no currency symbol, no text)\n\nRules:\n\nAlways use the exact key names \"Goal\" and \"Amount\".\n\nKeep the goal name concise (e.g., \"Macbook\" not \"my Macbook savings\").\n\nThe amount must always be a number (integer or float).\n\nDo not output anything outside of the JSON object.\n\nInfer the correct goal name even if the sentence uses extra words like \"add to,\" \"put in,\" \"saved for,\" \"spent on,\" etc.\n\nIf there is no clear amount or goal, output an empty JSON {}.\n\nExamples:\n\nInput:\n\nAdd 500 in my Macbook savings\n\n\nOutput:\n\n{\n  \"Goal\": \"Macbook\",\n  \"Amount\": 500\n}\n\n\nInput:\n\nI just saved 2500 for my dream trip\n\n\nOutput:\n\n{\n  \"Goal\": \"Dream trip\",\n  \"Amount\": 2500\n}\n\n\nInput:\n\nSpent 1200 on my gym membership this month\n\n\nOutput:\n\n{\n  \"Goal\": \"Gym membership\",\n  \"Amount\": 1200\n}\n\n\nInput:\n\nPut ₹99.99 in my emergency fund\n\n\nOutput:\n\n{\n  \"Goal\": \"Emergency fund\",\n  \"Amount\": 99.99\n}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1648,
+        256
+      ],
+      "id": "17c88949-793d-455c-80d4-6f053548c248",
+      "name": "AI Agent4"
+    },
+    {
+      "parameters": {
+        "model": "qwen/qwen3-32b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1648,
+        64
+      ],
+      "id": "37627da2-7993-4c3c-9694-5b84f40847b0",
+      "name": "Groq Chat Model7",
+      "credentials": {
+        "groqApi": {
+          "id": "j0xkuJmyyEDuP6sV",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"Goal\": {\n      \"type\": \"string\",\n      \"minLength\": 1\n    },\n    \"Amount\": {\n      \"type\": \"number\"\n    }\n  },\n  \"required\": [\"Goal\", \"Amount\"],\n  \"additionalProperties\": false\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1792,
+        64
+      ],
+      "id": "ab24ca86-8dd4-47f3-8202-70f49e842bc1",
+      "name": "Structured Output Parser3"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"Goal\": \"{{ $json.output.Goal }}\",\n  \"Amount\": {{ $json.output.Amount }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2000,
+        256
+      ],
+      "id": "a3a2b081-7640-4425-a4b8-47868fef3e32",
+      "name": "Respond to Webhook3"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent3": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model6": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model7": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent4",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser3": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent4",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent4": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "f68af9b4-ce8e-47b0-9b6d-1477dfdb1cc2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5474262ad3a74c8a30868099193029b281dae7e3fe5effadab9ab50ca7708600"
+  },
+  "id": "N2eHYE8Y4BzM0249",
+  "tags": []
+}

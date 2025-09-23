@@ -90,6 +90,7 @@ const Dashboard: React.FC = () => {
   const [newGoalTitle, setNewGoalTitle] = useState("");
   const [newGoalTargetAmount, setNewGoalTargetAmount] = useState("");
   const [newGoalTargetDate, setNewGoalTargetDate] = useState("");
+  const [creatorUpiId, setCreatorUpiId] = useState("");
   
   
   // Fetch user's budgets
@@ -900,6 +901,19 @@ const Dashboard: React.FC = () => {
         return;
       }
 
+      // Update creator's UPI ID if provided
+      if (creatorUpiId && creatorUpiId.trim()) {
+        const { error: creatorUpiUpdateError } = await supabase
+          .from("users")
+          .update({ upi_id: creatorUpiId.trim() })
+          .eq("id", user.id);
+        
+        if (creatorUpiUpdateError) {
+          console.error("Error updating creator's UPI ID:", creatorUpiUpdateError.message);
+          // Continue with group creation even if UPI update fails
+        }
+      }
+
       // Get user IDs for valid emails
       const { data: validUsers, error: userError } = await supabase
         .from("users")
@@ -1005,6 +1019,7 @@ const Dashboard: React.FC = () => {
     setMemberEmails([""]);
     setEmailValidationErrors([]);
     setMemberUpiIds([""]);
+    setCreatorUpiId("");
     setShowNewGroupModal(false);
   };
 
@@ -1782,6 +1797,14 @@ const Dashboard: React.FC = () => {
                   value={newGroupDescription}
                   onChange={(e) => setNewGroupDescription(e.target.value)}
                   className="w-full p-4 bg-[#0D1B2A] border border-[#2D3A4D] rounded-xl text-[#E0E1DD] placeholder-[#778DA9] focus:outline-none focus:ring-2 focus:ring-[#00B4D8] focus:border-transparent transition-all duration-300 resize-none"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Your UPI ID (optional)"
+                  value={creatorUpiId}
+                  onChange={(e) => setCreatorUpiId(e.target.value)}
+                  className="w-full p-4 bg-[#0D1B2A] border border-[#2D3A4D] rounded-xl text-[#E0E1DD] placeholder-[#778DA9] focus:outline-none focus:ring-2 focus:ring-[#00B4D8] focus:border-transparent transition-all duration-300"
                 />
 
                 {/* Member Emails Section */}

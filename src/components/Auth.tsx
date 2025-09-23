@@ -233,22 +233,11 @@ const Auth: React.FC<AuthProps> = ({ onAuthSuccess }) => {
           transition={{ delay: 0.4 }}
         >
           <div className="text-center text-slate-500 text-sm mb-4">
-            or continue with
+            
           </div>
           
           <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => handleOAuthLogin('google')}
-              className="py-3 px-4 bg-slate-800/50 backdrop-blur-md border border-slate-700/50 rounded-xl text-white font-medium hover:bg-slate-700/50 hover:border-slate-600/50 transition-all duration-300 active:scale-95"
-            >
-              Google
-            </button>
-            <button
-              onClick={() => handleOAuthLogin('apple')}
-              className="py-3 px-4 bg-slate-800/50 backdrop-blur-md border border-slate-700/50 rounded-xl text-white font-medium hover:bg-slate-700/50 hover:border-slate-600/50 transition-all duration-300 active:scale-95"
-            >
-              Apple
-            </button>
+            
           </div>
         </motion.div>
 
