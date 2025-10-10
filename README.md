@@ -16,7 +16,7 @@ SpendWise is a smart expense management app that helps people **track, split, an
 
 [![SpendWise Demo](https://img.youtube.com/vi/UI_ye9DHRPc/maxresdefault.jpg)](https://youtu.be/UI_ye9DHRPc)
 
-[🔗 View Demo on YouTube](https://youtu.be/UI_ye9DHRPc)
+[![SpendWise](https://img.shields.io/badge/▶️_Watch_Demo-YouTube-red?style=for-the-badge&logo=youtube)]([https://youtu.be/UqIZeXr4yg4](https://youtu.be/UI_ye9DHRPc))
 
 ---
 
