@@ -13,7 +13,7 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
+    // Supabase is in sarawagishubam2@gmail.com acc, get initial session
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
