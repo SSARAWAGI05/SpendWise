@@ -6,18 +6,27 @@
 
 **Simplifying Expenses. One Conversation at a Time.**
 
+</div>
 
 SpendWise is a smart expense management app that helps people **track, split, and settle expenses in natural language**, while also budgeting and saving toward personal goals. It combines group expense tracking, personal budgeting, and UPI automation — all in one place.
-
-</div>
 
 ## 🎥 Demo Video
 
 **Watch SpendWise in Action:**
 
-[![SpendWise Demo](https://img.youtube.com/vi/UI_ye9DHRPc/maxresdefault.jpg)](https://youtu.be/UI_ye9DHRPc)
+<div align="center">
+  <a href="https://youtu.be/UI_ye9DHRPc">
+    <img src="https://img.youtube.com/vi/UI_ye9DHRPc/maxresdefault.jpg" alt="SpendWise Demo" style="width:80%; max-width:800px;">
+  </a>
+  <br>
+  <em>👆 Click to watch the full demo on YouTube</em>
+</div>
 
-[🔗 View Demo on YouTube](https://youtu.be/UI_ye9DHRPc)
+**Alternative:** If you're viewing this on a platform that supports HTML, the video is embedded below:
+
+<div align="center">
+  <iframe width="800" height="450" src="https://www.youtube.com/embed/UI_ye9DHRPc" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</div>
 
 ---
 
